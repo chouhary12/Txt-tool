@@ -5,9 +5,12 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, InputFi
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 app_web = Flask(__name__)
+
+# 🔹 AUTO URL DETECT
+def get_webhook_url():
+    return os.getenv("RENDER_EXTERNAL_URL")  # Render auto देता है
 
 # 🔹 MENU
 def main_menu():
@@ -95,8 +98,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(clean)
 
     elif mode == "extract":
-        links = extract_links(text)
-        await send_file(update, links)
+        await send_file(update, extract_links(text))
 
     elif mode == "compare":
         context.user_data.setdefault("data", []).append(text)
@@ -121,8 +123,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_file(update, text.splitlines())
 
     elif mode == "split":
-        links = extract_links(text)
-        parts = split_links(links, 50)
+        parts = split_links(extract_links(text), 50)
         await send_multiple_files(update, parts)
 
 # 🔹 FILE HANDLER
@@ -166,7 +167,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["step"] = "old"
         await update.message.reply_text("Send OLD domain")
 
-# 🔹 FLASK WEBHOOK
+# 🔹 WEBHOOK ROUTE
 @app_web.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
@@ -177,9 +178,8 @@ def webhook():
 def home():
     return "Bot Running 🚀"
 
-# 🔹 APP INIT
+# 🔹 INIT
 application = ApplicationBuilder().token(TOKEN).build()
-
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CallbackQueryHandler(button))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
@@ -187,8 +187,10 @@ application.add_handler(MessageHandler(filters.Document.ALL, handle_file))
 
 # 🔹 RUN
 if __name__ == "__main__":
+    webhook_url = get_webhook_url()
+
     application.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get("PORT", 10000)),
-        webhook_url=f"{WEBHOOK_URL}/{TOKEN}"
-      )
+        webhook_url=f"{webhook_url}/{TOKEN}"
+    )
