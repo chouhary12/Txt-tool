@@ -7,5 +7,3 @@ services:
     envVars:
       - key: BOT_TOKEN
         sync: false
-      - key: WEBHOOK_URL
-        sync: false
